@@ -178,6 +178,7 @@ class EngineCore:
             # Start grammar compilation asynchronously
             self.structured_output_manager.grammar_init(req)
 
+        print("In add_request, the request looks like:", req)
         self.scheduler.add_request(req)
 
     def abort_requests(self, request_ids: list[str]):
@@ -200,10 +201,12 @@ class EngineCore:
                 scheduler_stats=self.scheduler.make_stats(),
             )
         scheduler_output = self.scheduler.schedule()
+        print("In step(), scheduler_output:", scheduler_output)
         output = self.model_executor.execute_model(scheduler_output)
+        print("In step(), output after execute_model:", output)
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, output)  # type: ignore
-
+        print("In step(), output of update_from_output:", engine_core_outputs)
         return engine_core_outputs
 
     def step_with_batch_queue(self) -> Optional[EngineCoreOutputs]:

@@ -4,7 +4,7 @@ import copy
 from dataclasses import dataclass
 from enum import Enum, IntEnum
 from functools import cached_property
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any, Optional, Union, Callable
 
 import msgspec
 from pydantic import BaseModel
@@ -13,6 +13,8 @@ from vllm.logger import init_logger
 from vllm.logits_process import LogitsProcessor
 from vllm.transformers_utils.tokenizer import AnyTokenizer
 from vllm.transformers_utils.tokenizers.mistral import MistralTokenizer
+
+from vllm.temperature_schedule import TemperatureScheduler
 
 logger = init_logger(__name__)
 
@@ -158,6 +160,7 @@ class SamplingParams(
         min_p: Float that represents the minimum probability for a token to be
             considered, relative to the probability of the most likely token.
             Must be in [0, 1]. Set to 0 to disable this.
+        temperature_scheduler: TemperatureScheduler that controls the temperature during sampling.
         seed: Random seed to use for the generation.
         stop: list of strings that stop the generation when they are generated.
             The returned output will not contain the stop strings.
@@ -215,6 +218,7 @@ class SamplingParams(
     top_p: float = 1.0
     top_k: int = -1
     min_p: float = 0.0
+    temperature_scheduler: Optional[TemperatureScheduler] = None
     seed: Optional[int] = None
     stop: Optional[Union[str, list[str]]] = None
     stop_token_ids: Optional[list[int]] = None
@@ -259,6 +263,7 @@ class SamplingParams(
         frequency_penalty: Optional[float] = 0.0,
         repetition_penalty: Optional[float] = 1.0,
         temperature: Optional[float] = 1.0,
+        temperature_scheduler: Optional[TemperatureScheduler] = None,
         top_p: Optional[float] = 1.0,
         top_k: int = -1,
         min_p: float = 0.0,
@@ -302,6 +307,7 @@ class SamplingParams(
             repetition_penalty=1.0
             if repetition_penalty is None else repetition_penalty,
             temperature=1.0 if temperature is None else temperature,
+            temperature_scheduler=temperature_scheduler,
             top_p=1.0 if top_p is None else top_p,
             top_k=top_k,
             min_p=min_p,
@@ -349,6 +355,10 @@ class SamplingParams(
                 "errors nan or inf in tensors. We have maxed it out to %s.",
                 self.temperature, _MAX_TEMP, _MAX_TEMP)
             self.temperature = max(self.temperature, _MAX_TEMP)
+
+        # Huihan: defaults to temperature=1.0
+        if self.temperature_scheduler is None:
+            self.temperature_scheduler = TemperatureScheduler(name="constant")
 
         if self.seed == -1:
             self.seed = None
@@ -563,6 +573,7 @@ class SamplingParams(
             f"frequency_penalty={self.frequency_penalty}, "
             f"repetition_penalty={self.repetition_penalty}, "
             f"temperature={self.temperature}, "
+            f"temperature_scheduler={self.temperature_scheduler},"
             f"top_p={self.top_p}, "
             f"top_k={self.top_k}, "
             f"min_p={self.min_p}, "

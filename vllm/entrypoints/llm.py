@@ -1420,6 +1420,8 @@ class LLM:
         total_in_toks = 0
         total_out_toks = 0
         while self.llm_engine.has_unfinished_requests():
+            # TODO (Huihan): we need to update the temperature of next step before calling step()
+            
             step_outputs = self.llm_engine.step()
             for output in step_outputs:
                 if output.finished:
