@@ -100,8 +100,8 @@ class ModelRunnerOutput:
     # [prompt_len]
     prompt_logprobs_dict: dict[str, Optional[LogprobsTensors]]
 
-    # Huihan: added to pass down temperature information of the specific token; Optional for now to make code run - change later.
-    generation_temperature: Optional[float] = 1.0
+    # Huihan: added to pass down previous temperature information of the specific token; Optional for now to make code run - change later.
+    generation_temperature: Optional[list[float]]
 
 
 EMPTY_MODEL_RUNNER_OUTPUT = ModelRunnerOutput(
@@ -111,5 +111,5 @@ EMPTY_MODEL_RUNNER_OUTPUT = ModelRunnerOutput(
     spec_token_ids=None,
     logprobs=None,
     prompt_logprobs_dict={},
-    generation_temperature=1.0,
+    generation_temperature=[1.0],
 )

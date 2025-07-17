@@ -178,7 +178,6 @@ class EngineCore:
             # Start grammar compilation asynchronously
             self.structured_output_manager.grammar_init(req)
 
-        print("In add_request, the request looks like:", req)
         self.scheduler.add_request(req)
 
     def abort_requests(self, request_ids: list[str]):
@@ -544,6 +543,7 @@ class EngineCoreProc(EngineCore):
                             linger=4000) as socket:
             while True:
                 outputs = self.output_queue.get()
+                print("In process_output_socket, outputs:", outputs)
                 if outputs == EngineCoreProc.ENGINE_CORE_DEAD:
                     socket.send(outputs, copy=False)
                     break

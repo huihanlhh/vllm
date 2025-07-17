@@ -192,6 +192,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
             pin_memory=self.pin_memory,
             vocab_size=model_config.get_vocab_size(),
         )
+        print("self.input_batch after initialization:", self.input_batch.sampling_metadata)
 
         self.use_cuda_graph = (self.vllm_config.compilation_config.level
                                == CompilationLevel.PIECEWISE
@@ -292,6 +293,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         The SamplingMetadata is updated and copied to the GPU if there is a
         new/resumed/paused/finished request in the batch.
         """
+        print("self.input_batch before _update_states:", self.input_batch.sampling_metadata)
         # Remove finished requests from the cached states.
         for req_id in scheduler_output.finished_req_ids:
             self.requests.pop(req_id, None)
@@ -484,6 +486,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
 
         if batch_changed or batch_reordered:
             self.input_batch.refresh_sampling_metadata()
+        print("self.input_batch after _update_states:", self.input_batch.sampling_metadata)
 
     def _prepare_inputs(
         self,
@@ -1005,6 +1008,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         scheduler_output: "SchedulerOutput",
         intermediate_tensors: Optional[IntermediateTensors] = None,
     ) -> Union[ModelRunnerOutput, torch.Tensor]:
+        print("execute_model: intermediate_tensors:", intermediate_tensors)
         # Update KVConnector with the KVConnector metadata forward().
         if has_kv_transfer_group():
             get_kv_transfer_group().bind_connector_metadata(
@@ -1115,6 +1119,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
 
         # Sample the next token and get logprobs if needed.
         sampling_metadata = self.input_batch.sampling_metadata
+        print("GPUModelRunner, sampling_metadata:", sampling_metadata)
         if spec_decode_metadata is None:
             sampler_output = self.sampler(
                 logits=logits,
@@ -1285,6 +1290,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
             spec_token_ids=spec_token_ids,
             logprobs=logprobs_lists,
             prompt_logprobs_dict=prompt_logprobs_dict,
+            generation_temperature=sampling_metadata.temperature.tolist(),
         )
 
     def generate_draft_token_ids(

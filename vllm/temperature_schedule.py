@@ -119,8 +119,8 @@ class TemperatureScheduler:
             if epoch % 10 == 0 or epoch == epochs - 1:
                 print(f"[Epoch {epoch+1}/{epochs}] Loss: {loss.item():.4f}")
 
-    def clone(self) -> "TemperatureSchedule":
+    def clone(self) -> "TemperatureScheduler":
         return copy.deepcopy(self)
 
     def __repr__(self) -> str:
-        return f"TemperatureSchedule(name='{self.name}')"
+        return f"TemperatureScheduler(name='{self.name}')"

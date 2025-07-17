@@ -13,6 +13,7 @@ from vllm.distributed.kv_transfer.kv_connector.factory import (
 from vllm.distributed.kv_transfer.kv_connector.v1 import KVConnectorRole
 from vllm.logger import init_logger
 from vllm.multimodal import MULTIMODAL_REGISTRY, MultiModalRegistry
+from vllm.temperature_schedule import TemperatureScheduler
 from vllm.v1.core.encoder_cache_manager import (EncoderCacheManager,
                                                 compute_encoder_budget)
 from vllm.v1.core.kv_cache_manager import KVCacheManager
@@ -133,6 +134,10 @@ class Scheduler(SchedulerInterface):
             caching_hash_algo=self.cache_config.prefix_caching_hash_algo,
             use_eagle=self.use_eagle,
             log_stats=self.log_stats)
+
+        # Create the temperature scheduler
+        # TODO (Huihan): potentially add more arguments for learned models
+        self.temperature_scheduler = TemperatureScheduler(name=self.scheduler_config.temperature_scheduler_cls)
 
     def schedule(self) -> SchedulerOutput:
         # NOTE(woosuk) on the scheduling algorithm:
@@ -443,6 +448,7 @@ class Scheduler(SchedulerInterface):
             structured_output_request_ids,
             len(self.running),
         )
+        print("scheduled_new_reqs:", scheduled_new_reqs)
         # Construct the scheduler output.
         new_reqs_data = [
             NewRequestData.from_request(req,
@@ -632,6 +638,7 @@ class Scheduler(SchedulerInterface):
         logprobs = model_runner_output.logprobs
         prompt_logprobs_dict = model_runner_output.prompt_logprobs_dict
         num_scheduled_tokens = scheduler_output.num_scheduled_tokens
+        generation_temperature = model_runner_output.generation_temperature
 
         new_running: list[Request] = []
         outputs: list[EngineCoreOutput] = []
@@ -725,6 +732,7 @@ class Scheduler(SchedulerInterface):
                     EngineCoreOutput(
                         request_id=req_id,
                         new_token_ids=new_token_ids,
+                        generation_temperature=generation_temperature,
                         finish_reason=request.get_finished_reason(),
                         new_logprobs=new_logprobs,
                         new_prompt_logprobs_tensors=prompt_logprobs_tensors,

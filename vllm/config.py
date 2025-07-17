@@ -1932,6 +1932,9 @@ class SchedulerConfig:
     default scheduler. Can be a class directly or the path to a class of form
     "mod.custom_class"."""
 
+    temperature_scheduler_cls: str = "constant"
+    """The temperature scheduler name to use. Candidates are 'constant', 'sinusoidal' and 'learned'"""
+
     def compute_hash(self) -> str:
         """
         WARNING: Whenever a new field is added to this config,
