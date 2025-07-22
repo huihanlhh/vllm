@@ -33,6 +33,7 @@ class CompletionOutput:
             to stop, None if the completion finished for some other reason
             including encountering the EOS token.
         lora_request: The LoRA request that was used to generate the output.
+        generation_temperatures: The list of temperatures used to generate the output.
     """
 
     index: int
@@ -40,6 +41,7 @@ class CompletionOutput:
     token_ids: GenericSequence[int]
     cumulative_logprob: Optional[float]
     logprobs: Optional[SampleLogprobs]
+    generation_temperatures: list[float]
     finish_reason: Optional[str] = None
     stop_reason: Union[int, str, None] = None
     lora_request: Optional[LoRARequest] = None
@@ -54,7 +56,8 @@ class CompletionOutput:
                 f"cumulative_logprob={self.cumulative_logprob}, "
                 f"logprobs={self.logprobs}, "
                 f"finish_reason={self.finish_reason}, "
-                f"stop_reason={self.stop_reason})")
+                f"stop_reason={self.stop_reason}, "
+                f"generation_temperatures={self.generation_temperatures})")
 
 
 @dataclass
@@ -157,6 +160,7 @@ class RequestOutput:
                             next_completion.cumulative_logprob)
                         completion.finish_reason = next_completion.finish_reason
                         completion.stop_reason = next_completion.stop_reason
+                        completion.generation_temperatures = next_completion.generation_temperatures
                     else:
                         # Replace the output with the new one
                         self.outputs[i] = next_completion
@@ -206,7 +210,8 @@ class RequestOutput:
                 prompt_token_ids=[],
                 prompt_logprobs=None,
                 outputs=[],
-                finished=False)
+                finished=False,
+                )
 
         top_n_seqs = seq_group.get_seqs()
 
@@ -217,6 +222,7 @@ class RequestOutput:
         include_logprobs = sampling_params.logprobs is not None
         text_buffer_length = sampling_params.output_text_buffer_length
         delta = sampling_params.output_kind == RequestOutputKind.DELTA
+        generation_temperatures = sampling_params.generation_temperatures
 
         outputs = []
         include_prompt = True
@@ -258,7 +264,8 @@ class RequestOutput:
                                          cumulative_logprob=None,
                                          logprobs=None,
                                          finish_reason=None,
-                                         stop_reason=None))
+                                         stop_reason=None,
+                                         generation_temperatures=None,))
                 output = cached_outputs[i]
 
                 # Init cached output object
@@ -277,6 +284,7 @@ class RequestOutput:
                 output.finish_reason = SequenceStatus.get_finished_reason(
                     seq.status)
                 output.stop_reason = seq.stop_reason
+                output.generation_temperatures = generation_temperatures
 
             else:
                 output = CompletionOutput(
@@ -285,7 +293,8 @@ class RequestOutput:
                     seq.get_cumulative_logprob() if include_logprobs else None,
                     output_logprobs,
                     SequenceStatus.get_finished_reason(seq.status),
-                    seq.stop_reason)
+                    seq.stop_reason,
+                    generation_temperatures)
 
             outputs.append(output)
 

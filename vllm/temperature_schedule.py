@@ -52,9 +52,9 @@ class SimpleTempNet(nn.Module):
 
 
 class TemperatureScheduler:
-    def __init__(self, name, learned_model=None, learned_temp_range=(0.6, 1.2), feature_encoder=None):
+    def __init__(self, name, learned_model=None, learned_temp_amp=0.3, feature_encoder=None):
         self.name = name
-        self.learned_temp_range = learned_temp_range
+        self.learned_temp_amp = learned_temp_amp
 
         if name == "learned":
             self.feature_encoder = feature_encoder or FeatureEncoder()
@@ -71,17 +71,17 @@ class TemperatureScheduler:
         else:
             raise ValueError(f"Unknown temperature schedule: {name}")
 
-    def set_temp(self, step_idx, features=None, device='cpu', **kwargs):
+    def set_temp(self, step_idx, init_temp, features=None, device='cpu', **kwargs):
         if self.name == "learned":
             return self._learned_temp(features=features, device=device)
-        return self._temp_fn(step_idx, **kwargs)
+        return self._temp_fn(step_idx, init_temp, **kwargs)
 
-    def _constant(self, step_idx, value=1.0, **kwargs):
-        return value
+    def _constant(self, step_idx, init_temp, **kwargs):
+        return init_temp
 
-    def _sinusoidal(self, step_idx, base_temp=0.9, amp=0.3, period=160, **kwargs):
+    def _sinusoidal(self, step_idx, init_temp, amp=0.3, period=160, **kwargs):
         phase = (2 * math.pi * step_idx) / period
-        return base_temp + amp * math.sin(phase)
+        return init_temp + amp * math.sin(phase)
 
     def _learned_temp(self, features, device='cpu'):
         if features is None:

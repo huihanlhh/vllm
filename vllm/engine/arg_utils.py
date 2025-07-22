@@ -320,6 +320,7 @@ class EngineArgs:
     disable_async_output_proc: bool = False
     scheduling_policy: SchedulerPolicy = SchedulerConfig.policy
     scheduler_cls: Union[str, Type[object]] = SchedulerConfig.scheduler_cls
+    temperature_scheduler_cls: Optional[str] = "constant"
 
     override_neuron_config: Optional[Dict[str, Any]] = None
     override_pooler_config: Optional[PoolerConfig] = None
@@ -856,6 +857,8 @@ class EngineArgs:
             **scheduler_kwargs["disable_chunked_mm_input"])
         parser.add_argument('--scheduler-cls',
                             **scheduler_kwargs["scheduler_cls"])
+        parser.add_argument('--temperature-scheduler-cls',
+                            **scheduler_kwargs["temperature_scheduler_cls"])
 
         parser.add_argument(
             '--override-neuron-config',
@@ -1210,6 +1213,7 @@ class EngineArgs:
                              and parallel_config.use_ray),
             policy=self.scheduling_policy,
             scheduler_cls=self.scheduler_cls,
+            temperature_scheduler_cls=self.temperature_scheduler_cls,
             max_num_partial_prefills=self.max_num_partial_prefills,
             max_long_partial_prefills=self.max_long_partial_prefills,
             long_prefill_token_threshold=self.long_prefill_token_threshold,

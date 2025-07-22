@@ -82,6 +82,8 @@ class Scheduler(SchedulerInterface):
         # Priority queues for requests.
         self.waiting: deque[Request] = deque()
         self.running: list[Request] = []
+        # Step Counter for each Request
+        self.step_counters: dict[str, int] = defaultdict(int)
 
         # The request IDs that are finished in between the previous and the
         # current steps. This is used to notify the workers about the finished
@@ -249,7 +251,11 @@ class Scheduler(SchedulerInterface):
             assert new_blocks is not None
 
             # Schedule the request.
+            # calculate temperature based on current step_idx
+            temp = self.temperature_scheduler.set_temp(step_idx=self.step_counters[request.request_id], init_temp=request.sampling_params.temperature)
+            request.set_sampling_temp(temp)
             scheduled_running_reqs.append(request)
+
             if request.use_structured_output:
                 # PERF: in case of chunked prefill,
                 # request might not include any new tokens.
@@ -393,8 +399,15 @@ class Scheduler(SchedulerInterface):
                     request.record_event(EngineCoreEventType.SCHEDULED,
                                          scheduled_timestamp)
                 if request.status == RequestStatus.WAITING:
+                    # NOTE (Huihan): Here we append the beginning
+                    # of a new generated sequence. So we set it's 
+                    # initial generation temperature to default temperature
+                    request.set_sampling_temp(request.sampling_params.temperature)
                     scheduled_new_reqs.append(request)
                 elif request.status == RequestStatus.PREEMPTED:
+                    # calculate temperature based on current step_idx
+                    temp = self.temperature_scheduler.set_temp(step_idx=self.step_counters[req.request_id], init_temp=request.sampling_params.temperature)
+                    request.set_sampling_temp(temp)
                     scheduled_resumed_reqs.append(request)
                 else:
                     raise RuntimeError(
@@ -448,7 +461,7 @@ class Scheduler(SchedulerInterface):
             structured_output_request_ids,
             len(self.running),
         )
-        print("scheduled_new_reqs:", scheduled_new_reqs)
+
         # Construct the scheduler output.
         new_reqs_data = [
             NewRequestData.from_request(req,
@@ -473,6 +486,11 @@ class Scheduler(SchedulerInterface):
                 resumed_from_preemption=False,
             ) for req in scheduled_running_reqs
         ]
+        # increment step count for resumed_reqs_data and running_reqs_data
+        # this is for steps >= 1; for step == 0, temperature is simply init_temp
+        for req in scheduled_resumed_reqs + scheduled_running_reqs:
+            self.step_counters[req.request_id] += 1
+        
         scheduler_output = SchedulerOutput(
             scheduled_new_reqs=new_reqs_data,
             scheduled_cached_reqs=resumed_reqs_data + running_reqs_data,
@@ -657,6 +675,7 @@ class Scheduler(SchedulerInterface):
 
             req_index = model_runner_output.req_id_to_index[req_id]
             generated_token_ids = sampled_token_ids[req_index]
+            generation_temperature_req = generation_temperature[req_index]
 
             scheduled_spec_token_ids = (
                 scheduler_output.scheduled_spec_decode_tokens.get(req_id))
@@ -732,7 +751,7 @@ class Scheduler(SchedulerInterface):
                     EngineCoreOutput(
                         request_id=req_id,
                         new_token_ids=new_token_ids,
-                        generation_temperature=generation_temperature,
+                        generation_temperature=[generation_temperature_req],
                         finish_reason=request.get_finished_reason(),
                         new_logprobs=new_logprobs,
                         new_prompt_logprobs_tensors=prompt_logprobs_tensors,

@@ -198,7 +198,7 @@ class InprocClient(EngineCoreClient):
         self.engine_core = EngineCore(*args, **kwargs)
 
     def get_output(self) -> EngineCoreOutputs:
-        return self.engine_core.step() # TODO (Huihan): this get_output is called by llm_engine
+        return self.engine_core.step() # NOTE (Huihan): this get_output is called by llm_engine
 
     def add_request(self, request: EngineCoreRequest) -> None:
         self.engine_core.add_request(request)

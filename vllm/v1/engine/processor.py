@@ -207,9 +207,8 @@ class Processor:
         # TODO(woosuk): Support pooling models.
         # TODO(woosuk): Support encoder-decoder models.
         self._validate_lora(lora_request)
-        print("In process_inputs, L210, params:", params)
         self._validate_params(params)
-        print("In process_inputs, L212, params:", params)
+
         if priority != 0:
             raise ValueError("V1 does not support priority yet.")
         if trace_headers is not None:
@@ -257,10 +256,8 @@ class Processor:
                 len(decoder_inputs["prompt_token_ids"]))
         sampling_params.update_from_generation_config(
             self.generation_config_fields, eos_token_id)
-        print("In process_inputs, L260, sampling_params:", sampling_params)
         sampling_params.update_from_tokenizer(
             self.tokenizer.get_lora_tokenizer(lora_request))
-        print("In process_inputs, L263, sampling_params:", sampling_params)
 
         # Multimodal related.
         sorted_mm_inputs: Optional[Sequence[Optional[MultiModalKwargs]]] = None

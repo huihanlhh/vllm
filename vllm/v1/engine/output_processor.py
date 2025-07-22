@@ -100,6 +100,7 @@ class RequestState:
         self.max_tokens_param = max_tokens_param
         self.is_prefilling = True
         self.queue = queue
+        self.generation_temperatures = []
 
         self.stats = RequestStateStats(
             arrival_time=arrival_time) if log_stats else None
@@ -146,6 +147,7 @@ class RequestState:
         new_token_ids: list[int],
         finish_reason: Optional[FinishReason],
         stop_reason: Union[int, str, None],
+        generation_temperature: list[float],
     ) -> Optional[RequestOutput]:
 
         finished = finish_reason is not None
@@ -156,7 +158,7 @@ class RequestState:
             return None
 
         completion_output = self._new_completion_output(
-            new_token_ids, finish_reason, stop_reason)
+            new_token_ids, finish_reason, stop_reason, generation_temperature)
 
         request_id = self.request_id
         if self.parent_req is None:
@@ -196,6 +198,7 @@ class RequestState:
         token_ids: list[int],
         finish_reason: Optional[FinishReason],
         stop_reason: Union[int, str, None],
+        generation_temperature: list[float],
     ) -> CompletionOutput:
 
         finished = finish_reason is not None
@@ -205,6 +208,12 @@ class RequestState:
         text = self.detokenizer.get_next_output_text(finished, delta)
         if not delta:
             token_ids = self.detokenizer.output_token_ids
+
+        # Prepare generation temperature
+        if not delta:
+            generation_temperatures = self.generation_temperatures
+        else:
+            generation_temperatures = generation_temperature
 
         # Prepare logprobs, based on delta mode
         logprobs = self.logprobs_processor.logprobs
@@ -218,7 +227,9 @@ class RequestState:
             logprobs=logprobs,
             cumulative_logprob=self.logprobs_processor.cumulative_logprob,
             finish_reason=str(finish_reason) if finished else None,
-            stop_reason=stop_reason if finished else None)
+            stop_reason=stop_reason if finished else None,
+            generation_temperatures=generation_temperatures,
+            )
 
 
 class OutputProcessor:
@@ -337,6 +348,7 @@ class OutputProcessor:
             new_token_ids = engine_core_output.new_token_ids
             finish_reason = engine_core_output.finish_reason
             stop_reason = engine_core_output.stop_reason
+            generation_temperature = engine_core_output.generation_temperature # NOTE: By default it's a list with one item
 
             req_state.is_prefilling = False
 
@@ -346,13 +358,16 @@ class OutputProcessor:
             if stop_string:
                 finish_reason = FinishReason.STOP
                 stop_reason = stop_string
+            
+            # 2.5) Extend generation temperature to generation_temperatures for request
+            req_state.generation_temperatures.extend(generation_temperature)
 
             # 3) Compute sample and prompt logprobs for request, if required.
             req_state.logprobs_processor.update_from_output(engine_core_output)
 
             # 4) Create and handle RequestOutput objects.
             if request_output := req_state.make_request_output(
-                    new_token_ids, finish_reason, stop_reason):
+                    new_token_ids, finish_reason, stop_reason, generation_temperature):
                 if req_state.queue is not None:
                     # AsyncLLM: put into queue for handling by generate().
                     req_state.queue.put(request_output)

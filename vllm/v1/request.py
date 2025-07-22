@@ -142,6 +142,8 @@ class Request:
         events, self.events = self.events, []
         return events
 
+    def set_sampling_temp(self, temp: float) -> None:
+        self.sampling_params.set_sampling_temperature(temp)
 
 class RequestStatus(enum.IntEnum):
     """Status of a request."""

@@ -97,7 +97,7 @@ class EngineCoreOutput(
 
     request_id: str
     new_token_ids: list[int]
-    generation_temperature: Optional[list[float]] = None # NOTE:Huihan: added to pass down all previous temperature information of the specific token; Optional for now to make code run - change later.
+    generation_temperature: Optional[list[float]] = None
 
     new_logprobs: Optional[LogprobsLists] = None
     new_prompt_logprobs_tensors: Optional[LogprobsTensors] = None

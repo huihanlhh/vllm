@@ -200,12 +200,12 @@ class EngineCore:
                 scheduler_stats=self.scheduler.make_stats(),
             )
         scheduler_output = self.scheduler.schedule()
-        print("In step(), scheduler_output:", scheduler_output)
+
         output = self.model_executor.execute_model(scheduler_output)
-        print("In step(), output after execute_model:", output)
+
         engine_core_outputs = self.scheduler.update_from_output(
             scheduler_output, output)  # type: ignore
-        print("In step(), output of update_from_output:", engine_core_outputs)
+
         return engine_core_outputs
 
     def step_with_batch_queue(self) -> Optional[EngineCoreOutputs]:
@@ -543,7 +543,7 @@ class EngineCoreProc(EngineCore):
                             linger=4000) as socket:
             while True:
                 outputs = self.output_queue.get()
-                print("In process_output_socket, outputs:", outputs)
+
                 if outputs == EngineCoreProc.ENGINE_CORE_DEAD:
                     socket.send(outputs, copy=False)
                     break

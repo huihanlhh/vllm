@@ -192,7 +192,6 @@ class GPUModelRunner(LoRAModelRunnerMixin):
             pin_memory=self.pin_memory,
             vocab_size=model_config.get_vocab_size(),
         )
-        print("self.input_batch after initialization:", self.input_batch.sampling_metadata)
 
         self.use_cuda_graph = (self.vllm_config.compilation_config.level
                                == CompilationLevel.PIECEWISE
@@ -293,7 +292,6 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         The SamplingMetadata is updated and copied to the GPU if there is a
         new/resumed/paused/finished request in the batch.
         """
-        print("self.input_batch before _update_states:", self.input_batch.sampling_metadata)
         # Remove finished requests from the cached states.
         for req_id in scheduler_output.finished_req_ids:
             self.requests.pop(req_id, None)
@@ -425,6 +423,8 @@ class GPUModelRunner(LoRAModelRunnerMixin):
                 # The request is resumed from preemption.
                 # Replace the existing block IDs with the new ones.
                 req_state.block_ids = req_data.new_block_ids
+            # Update the sampling_params
+            req_state.sampling_params = req_data.sampling_params
 
             req_index = self.input_batch.req_id_to_index.get(req_id)
             if req_index is None:
@@ -456,6 +456,8 @@ class GPUModelRunner(LoRAModelRunnerMixin):
                     req_index, start_index:end_token_index] = spec_token_ids
             # NOTE(woosuk): `num_tokens` here may include spec decode tokens.
             self.input_batch.num_tokens[req_index] = end_token_index
+            # Update the generation temperature
+            self.input_batch.temperature_cpu[req_index] = req_state.sampling_params.generation_temperature
 
         # Check if the batch has changed. If not, we can skip copying the
         # sampling metadata from CPU to GPU.
@@ -474,6 +476,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
                 req_index = None
             self.input_batch.add_request(req_state, req_index)
 
+
         # Condense the batched states if there are empty indices.
         if removed_req_indices:
             self.input_batch.condense(removed_req_indices)
@@ -484,9 +487,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         batch_reordered = self.attn_metadata_builder.reorder_batch(
             self.input_batch, scheduler_output)
 
-        if batch_changed or batch_reordered:
-            self.input_batch.refresh_sampling_metadata()
-        print("self.input_batch after _update_states:", self.input_batch.sampling_metadata)
+        # if batch_changed or batch_reordered:
+        # NOTE (Huihan): Always refresh sampling_metadata because we change generation_temperature
+        self.input_batch.refresh_sampling_metadata()
 
     def _prepare_inputs(
         self,
@@ -1008,7 +1011,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         scheduler_output: "SchedulerOutput",
         intermediate_tensors: Optional[IntermediateTensors] = None,
     ) -> Union[ModelRunnerOutput, torch.Tensor]:
-        print("execute_model: intermediate_tensors:", intermediate_tensors)
+        
         # Update KVConnector with the KVConnector metadata forward().
         if has_kv_transfer_group():
             get_kv_transfer_group().bind_connector_metadata(
@@ -1119,7 +1122,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
 
         # Sample the next token and get logprobs if needed.
         sampling_metadata = self.input_batch.sampling_metadata
-        print("GPUModelRunner, sampling_metadata:", sampling_metadata)
+
         if spec_decode_metadata is None:
             sampler_output = self.sampler(
                 logits=logits,
