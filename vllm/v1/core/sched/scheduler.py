@@ -140,6 +140,7 @@ class Scheduler(SchedulerInterface):
         # Create the temperature scheduler
         # TODO (Huihan): potentially add more arguments for learned models
         self.temperature_scheduler = TemperatureScheduler(name=self.scheduler_config.temperature_scheduler_cls)
+        self.temperature_scheduler_kwargs = self.scheduler_config.temperature_scheduler_kwargs
 
     def schedule(self) -> SchedulerOutput:
         # NOTE(woosuk) on the scheduling algorithm:
@@ -252,7 +253,7 @@ class Scheduler(SchedulerInterface):
 
             # Schedule the request.
             # calculate temperature based on current step_idx
-            temp = self.temperature_scheduler.set_temp(step_idx=self.step_counters[request.request_id], init_temp=request.sampling_params.temperature)
+            temp = self.temperature_scheduler.set_temp(step_idx=self.step_counters[request.request_id], init_temp=request.sampling_params.temperature, **self.temperature_scheduler_kwargs)
             request.set_sampling_temp(temp)
             scheduled_running_reqs.append(request)
 
@@ -406,7 +407,7 @@ class Scheduler(SchedulerInterface):
                     scheduled_new_reqs.append(request)
                 elif request.status == RequestStatus.PREEMPTED:
                     # calculate temperature based on current step_idx
-                    temp = self.temperature_scheduler.set_temp(step_idx=self.step_counters[request.request_id], init_temp=request.sampling_params.temperature)
+                    temp = self.temperature_scheduler.set_temp(step_idx=self.step_counters[request.request_id], init_temp=request.sampling_params.temperature, **self.temperature_scheduler_kwargs)
                     request.set_sampling_temp(temp)
                     scheduled_resumed_reqs.append(request)
                 else:

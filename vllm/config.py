@@ -1935,6 +1935,9 @@ class SchedulerConfig:
     temperature_scheduler_cls: str = "constant"
     """The temperature scheduler name to use. Candidates are 'constant', 'sinusoidal' and 'learned'"""
 
+    temperature_scheduler_kwargs: dict[str, Any] = None
+    """Additional keyword arguments for the temperature scheduler (e.g., amp, period for sinusoidal)."""
+
     def compute_hash(self) -> str:
         """
         WARNING: Whenever a new field is added to this config,

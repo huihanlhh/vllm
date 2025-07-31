@@ -79,7 +79,7 @@ class TemperatureScheduler:
     def _constant(self, step_idx, init_temp, **kwargs):
         return init_temp
 
-    def _sinusoidal(self, step_idx, init_temp, amp=0.3, period=160, **kwargs):
+    def _sinusoidal(self, step_idx, init_temp, amp, period):
         phase = (2 * math.pi * step_idx) / period
         return init_temp + amp * math.sin(phase)
 

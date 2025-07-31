@@ -321,6 +321,7 @@ class EngineArgs:
     scheduling_policy: SchedulerPolicy = SchedulerConfig.policy
     scheduler_cls: Union[str, Type[object]] = SchedulerConfig.scheduler_cls
     temperature_scheduler_cls: Optional[str] = "constant"
+    temperature_scheduler_kwargs: Optional[Dict[str, Any]] = None
 
     override_neuron_config: Optional[Dict[str, Any]] = None
     override_pooler_config: Optional[PoolerConfig] = None
@@ -1214,6 +1215,7 @@ class EngineArgs:
             policy=self.scheduling_policy,
             scheduler_cls=self.scheduler_cls,
             temperature_scheduler_cls=self.temperature_scheduler_cls,
+            temperature_scheduler_kwargs=self.temperature_scheduler_kwargs,
             max_num_partial_prefills=self.max_num_partial_prefills,
             max_long_partial_prefills=self.max_long_partial_prefills,
             long_prefill_token_threshold=self.long_prefill_token_threshold,
